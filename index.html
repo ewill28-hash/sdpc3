@@ -11,7 +11,8 @@
     
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+    <!-- Chart.js (Stable Version) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -84,6 +85,14 @@
         }
         const auth = firebase.auth();
         const db = firebase.firestore();
+
+
+        const COLORS = [
+            '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', 
+            '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6'
+        ];
+
+
 
         // --- Helper Functions ---
         const formatDate = (ts) => {
@@ -304,6 +313,8 @@
         };
 
         const App = () => {
+
+           const { useState, useEffect, useRef, useMemo } = React;
             const [user, setUser] = React.useState(null);
             const [db, setDb] = useState(null);
             const [tab, setTab] = React.useState('match');
@@ -315,6 +326,13 @@
             const [detailMember, setDetailMember] = React.useState(null);
             const [showDistModal, setShowDistModal] = React.useState(false); // 분포도 모달 상태
             const [showPartnerModal, setShowPartnerModal] = React.useState(false); // 파트너 통계 모달
+
+            const [showTrendModal, setShowTrendModal] = React.useState(false);
+
+            const [isAllSelected, setIsAllSelected] = useState(true);
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
 
             const [teamA, setTeamA] = React.useState([]);
             const [teamB, setTeamB] = React.useState([]);
@@ -368,6 +386,132 @@
                 };
                 init();
             }, []);
+
+
+            useEffect(() => {
+                if (!user) return;
+                const matchesRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('matches');
+                return matchesRef.onSnapshot((snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const sorted = data.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+                    setMatches(sorted);
+                    setLoading(false);
+                }, (error) => console.error("Firestore error:", error));
+            }, [user]);
+
+            const dashboardData = useMemo(() => {
+                if (!matches.length) return { top10Names: [], chartData: { labels: [], datasets: [] } };
+                
+                const playerFullHistory = {};
+                const lastSeen = {};
+                
+                matches.forEach((match) => {
+                    const teams = [...(match.teamA || []), ...(match.teamB || [])];
+                    teams.forEach(p => {
+                        if (p.name) {
+                            const name = p.name.trim();
+                            if (!playerFullHistory[name]) playerFullHistory[name] = [];
+                            if (p.afterRating !== undefined) {
+                                playerFullHistory[name].push(p.afterRating);
+                                lastSeen[name] = match.createdAt?.seconds || 0;
+                            }
+                        }
+                    });
+                });
+
+                const top10Names = Object.entries(lastSeen)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 10)
+                    .map(([name]) => name);
+
+                const MAX_HISTORY = 11;
+                const labels = Array.from({ length: MAX_HISTORY }, (_, i) => {
+                    const revIndex = MAX_HISTORY - 1 - i;
+                    return revIndex === 0 ? 'Rec' : `L${revIndex}`;
+                });
+                
+                const datasets = top10Names.map((name, i) => {
+                    const fullHist = playerFullHistory[name] || [];
+                    const recentHist = fullHist.slice(-MAX_HISTORY);
+                    const paddedData = new Array(MAX_HISTORY - recentHist.length).fill(null).concat(recentHist);
+
+                    return {
+                        label: name,
+                        data: paddedData,
+                        borderColor: COLORS[i % COLORS.length],
+                        backgroundColor: COLORS[i % COLORS.length],
+                        borderWidth: 3,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        spanGaps: true,
+                        hidden: false
+                    };
+                });
+
+                return { top10Names, chartData: { labels, datasets } };
+            }, [matches]);
+
+            const toggleAllLegends = () => {
+                if (!chartInstance.current) return;
+                const newValue = !isAllSelected;
+                chartInstance.current.data.datasets.forEach((dataset, index) => {
+                    chartInstance.current.setDatasetVisibility(index, newValue);
+                });
+                chartInstance.current.update();
+                setIsAllSelected(newValue);
+            };
+
+            // Initialize Chart inside Modal when it opens
+            useEffect(() => {
+                if (showTrendModal && chartRef.current && dashboardData.chartData.labels.length > 0) {
+                    const timer = setTimeout(() => {
+                        if (chartInstance.current) chartInstance.current.destroy();
+                        const ctx = chartRef.current.getContext('2d');
+                        chartInstance.current = new Chart(ctx, {
+                            type: 'line',
+                            data: dashboardData.chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        onClick: (e, legendItem, legend) => {
+                                            const index = legendItem.datasetIndex;
+                                            const ci = legend.chart;
+                                            if (ci.isDatasetVisible(index)) ci.hide(index);
+                                            else ci.show(index);
+                                            const visibleCount = ci.data.datasets.filter((_, i) => ci.isDatasetVisible(i)).length;
+                                            setIsAllSelected(visibleCount === ci.data.datasets.length);
+                                        },
+                                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 15, font: { size: 10, weight: 'bold' } }
+                                    },
+                                    tooltip: {
+                                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                        titleColor: '#1e293b',
+                                        bodyColor: '#1e293b',
+                                        borderColor: '#e2e8f0',
+                                        borderWidth: 1,
+                                        cornerRadius: 12,
+                                        callbacks: {
+                                            title: (items) => {
+                                                const label = items[0].label;
+                                                return label === 'Rec' ? '가장 최근 경기' : `${label.replace('L', '')} 경기 전`;
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                                    y: { display: true, position: 'right', grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 }, color: '#cbd5e1' } }
+                                }
+                            }
+                        });
+                    }, 100);
+                    return () => clearTimeout(timer);
+                }
+            }, [showTrendModal, dashboardData.chartData]);
 
 
             React.useEffect(() => {
@@ -1061,6 +1205,33 @@
                         )}
                     </Modal>
 
+                   {/* Performance Trends Modal */}
+                    <Modal 
+                        isOpen={showTrendModal} 
+                        title="Rating Trend" 
+                        onClose={() => setShowTrendModal(false)}
+                    >
+                        <div className="space-y-4 px-1 py-1">
+                            <div className="flex justify-between items-center px-1">
+                                <button 
+                                    onClick={toggleAllLegends}
+                                    className={`text-[9px] font-black px-3 py-1.5 rounded-full transition-all border ${
+                                        isAllSelected 
+                                        ? 'bg-slate-100 text-slate-500 border-slate-200' 
+                                        : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                    }`}
+                                >
+                                    {isAllSelected ? 'DESELECT ALL' : 'SELECT ALL'}
+                                </button>
+                            </div>
+
+                            <div className="h-[380px] w-full relative bg-slate-50/50 rounded-3xl p-2 border border-slate-100">
+                                <canvas ref={chartRef}></canvas>
+                            </div>
+                        </div>
+                    </Modal>
+
+
                     <header className="bg-white border-b sticky top-0 z-40 px-4 py-3 shadow-sm">
                         <div className="flex items-center justify-between mb-2">
                             <h1 className="text-xl font-extrabold flex items-center gap-2 text-slate-900">
@@ -1135,6 +1306,7 @@
                                     <Icon name="save" size={28} /> 경기 결과 저장
                                 </button>
                                 <div>
+
                                     <h3 className="text-slate-800 font-black mb-4 flex items-center gap-2"><Icon name="users" size={18} /> 선수 명단 <span className="text-[10px] text-gray-400 font-medium">(레이팅 변동 예상치 표시)</span></h3>
                                     <div className="grid grid-cols-5 gap-2.5">
                                         {members.map(m => {
@@ -1331,6 +1503,10 @@
                                     <button onClick={() => setShowDistModal(true)} className="text-xs text-orange-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
                                         <Icon name="bar-chart-horizontal" size={12} /> Segment distribution
                                     </button>
+
+                                    <button onClick={() => setShowTrendModal(true)} className="text-xs text-sky-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
+                                        <Icon name="line-chart" size={12} /> Rating Trend
+                                    </button>
                                 </div>
 
                                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden fade-in">
@@ -1411,7 +1587,6 @@
 											<button onClick={() => setAdminSort('rating')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'rating' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                                                 레이팅순 정렬
                                             </button>
-
                                         </div>
 
                                         <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm divide-y divide-gray-50">
