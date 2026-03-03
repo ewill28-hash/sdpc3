@@ -1136,7 +1136,7 @@
                                 </button>
                                 <div>
                                     <h3 className="text-slate-800 font-black mb-4 flex items-center gap-2"><Icon name="users" size={18} /> 선수 명단 <span className="text-[10px] text-gray-400 font-medium">(레이팅 변동 예상치 표시)</span></h3>
-                                    <div className="grid grid-cols-4 gap-2.5">
+                                    <div className="grid grid-cols-5 gap-2.5">
                                         {members.map(m => {
                                             const isA = teamA.find(p => p.id === m.id);
                                             const isB = teamB.find(p => p.id === m.id);
@@ -1198,9 +1198,9 @@
                                             try {
                                                 await downloadHistoryCSV();
                                                 // 필요 시 성공 메시지 추가
-                                                // showToast("다운로드가 완료되었습니다.");
+                                                showToast("기록 다운로드가 완료되었습니다.");
                                             } catch (e) { 
-                                                showToast("다운로드 중 오류가 발생했습니다."); 
+                                                showToast("기록 다운로드 중 오류가 발생했습니다."); 
                                             }
                                             })} 
                                             className="flex-1 flex items-center justify-center gap-1.5 py-3 bg-slate-50 text-slate-600 rounded-xl text-[11px] font-black hover:bg-slate-100 transition-colors"
@@ -1240,7 +1240,7 @@
                                                     try {
                                                         await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('matches').doc(m.id).delete();
                                                         showToast("기록이 삭제되었습니다.");
-                                                    } catch (e) { showToast("삭제 중 오류가 발생했습니다."); }
+                                                    } catch (e) { showToast("기록 삭제 중 오류가 발생했습니다."); }
                                                 })} className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-300 hover:text-red-600 hover:bg-red-100 transition-all active:scale-90">
                                                     <Icon name="trash-2" size={16} />
                                                 </button>
