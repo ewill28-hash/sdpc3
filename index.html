@@ -86,7 +86,7 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        const MAX_HISTORY_LIMIT = 12;
+        const MAX_HISTORY_LIMIT = 16;
         
         const COLORS = [
             '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', 
@@ -241,7 +241,7 @@
                         if (timeA !== timeB) return timeA - timeB;
                         return a.id.localeCompare(b.id);
                     })
-                    .slice(-20);
+                    .slice(-MAX_HISTORY_LIMIT);
 
                 const ratings = filtered.map(m => {
                     const p = [...(m.teamA || []), ...(m.teamB || [])].find(player => player.id === member.id);
@@ -425,7 +425,7 @@
 
                 const topPlayers = Object.entries(lastSeen)
                     .sort(([, a], [, b]) => b - a)
-                    .slice(0, 10)
+                    .slice(0, 20)
                     .map(([name]) => name);
 
                 const MAX_HISTORY = MAX_HISTORY_LIMIT;
