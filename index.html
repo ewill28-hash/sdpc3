@@ -82,8 +82,8 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        const DISPLAY_DATA_POINTS = 11;
-        const DISPLAY_PLAYER_COUNT = 20;
+        const DISPLAY_DATA_POINTS = 16;
+        const DISPLAY_PLAYER_COUNT = 24;
         
 
         const COLORS = [
@@ -445,12 +445,27 @@
                     const ctx = chartRef.current.getContext('2d');
                     const topPlayers = sortedData.players.slice(0, DISPLAY_PLAYER_COUNT); // 설정된 선수 수만큼 추출                    
                     // 더 많은 선수 표시를 위한 확장 컬러 팔레트
-                    const colors = [
+                    const baseColors = [
                         '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', 
                         '#a855f7', '#ec4899', '#f97316', '#3b82f6', '#84cc16',
                         '#6366f1', '#14b8a6', '#facc15', '#f87171', '#22d3ee',
-                        '#c084fc', '#f472b6', '#fb923c', '#60a5fa', '#a3e635', '#94a3b8'
+                        '#c084fc', '#f472b6', '#fb923c', '#60a5fa', '#a3e635', 
+                        '#94a3b8', 
+                        '#78350f', // 22. Deep Amber/Brown (진한 브라운)
+                        '#1e293b', // 23. Slate Blue/Navy (딥 네이비)
+                        '#e11d48'  // 24. Rose (강렬한 로즈)
                     ];
+
+                    // DISPLAY_PLAYER_COUNT 수만큼 색상 배열 자동 생성
+                    const colors = Array.from({ length: DISPLAY_PLAYER_COUNT }, (_, i) => {
+                        return baseColors[i % baseColors.length];
+                    });
+
+                    //                    const colors = Array.from({ length: DISPLAY_PLAYER_COUNT }, (_, i) => {
+                    //                        const hue = (i * (360 / DISPLAY_PLAYER_COUNT)) % 360;
+                    //                        return `hsl(${hue}, 70%, 60%)`; // 채도 70%, 밝기 60%로 일관성 유지
+                    //                    });
+
 
                     chartInstance.current = new Chart(ctx, {
                         type: 'line',
