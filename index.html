@@ -478,7 +478,7 @@
                             interaction: { mode: 'index', intersect: false }, // 같은 인덱스(시점)의 툴팁 같이 표시
                             plugins: {
                                 legend: { 
-                                    position: 'bottom',
+                                    position: 'top',
                                     labels: { padding: 20, usePointStyle: true, font: { size: 12, weight: '600' } },
                                     // 레전드 클릭 시 필터링 수행
                                     onClick: (e, legendItem, legend) => {
@@ -1222,14 +1222,15 @@
 
                     {/* 그래프 모달 */}
                     {showModal && (
-                        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-1" onClick={() => setShowModal(false)}>
+                        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-1 pt-[50px]" onClick={() => setShowModal(false)}>
                             <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl flex flex-col max-h-[95vh]" onClick={e => e.stopPropagation()}>
-                             
-                                <div className="px-1 py-1 items-center justify-end flex gap-1 border-b bg-gray-50/50">
-                                    <button onClick={() => toggleAll(true)} className="text-[9px] font-bold px-3 py-1 bg-white border border-gray-200 rounded-lg hover:bg-indigo-50 hover:text-emerald-600 transition-all shadow-sm">Select All</button>
-                                    <button onClick={() => toggleAll(false)} className="text-[9px] font-bold px-3 py-1 bg-white border border-gray-200 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all shadow-sm">Deselect All</button>
-                                    <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">✕</button>
+                                <div className="flex justify-between items-center p-1 border-b">
+                                    
+                                    <h2 className="text-lg font-bold text-gray-600 ml-1"><Icon name="line-chart" size={20} /> Rating Trend</h2>
+                                    <button onClick={() => toggleAll(true)} className="text-[10px] font-bold px-3 py-1 bg-white border border-gray-200 rounded-lg hover:bg-indigo-50 hover:text-emerald-600 transition-all shadow-sm">Select All</button>
+                                    <button onClick={() => toggleAll(false)} className="text-[10px] font-bold px-3 py-1 bg-white border border-gray-200 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all shadow-sm">Deselect All</button>
 
+                                    <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">✕</button>
                                 </div>
                                 <div className="p-1 flex-1 overflow-hidden">
                                     <div className="h-full w-full min-h-[430px]">
