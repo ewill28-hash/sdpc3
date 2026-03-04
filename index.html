@@ -425,7 +425,7 @@
 
                 const topPlayers = Object.entries(lastSeen)
                     .sort(([, a], [, b]) => b - a)
-                    .slice(0, 6)
+                    .slice(0, 10)
                     .map(([name]) => name);
 
                 const MAX_HISTORY = MAX_HISTORY_LIMIT;
@@ -1209,13 +1209,12 @@
                     </Modal>
 
                     {/* Chart Modal */}
-                    <Modal isOpen={showTrendModal} title="Rating Trend(Graph)" onClose={() => setShowTrendModal(false)} maxWidth="max-w-md">
-                        <div className="space-y-4">
+                    <Modal isOpen={showTrendModal} title="Rating Trend" onClose={() => setShowTrendModal(false)} maxWidth="max-w-md">
+                        <div className="space-y-2">
                             <div className="flex justify-between items-center px-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trend (Right: Latest)</span>
                                 <button onClick={toggleAllLegends} className="text-[10px] font-black text-emerald-500 underline uppercase">Toggle All</button>
                             </div>
-                            <div className="h-[350px] w-full bg-slate-50 rounded-3xl p-2 border border-slate-100">
+                            <div className="h-[400px] w-full bg-slate-50 rounded-3xl p-1 border border-slate-100">
                                 <canvas ref={chartRef}></canvas>
                             </div>
                         </div>
