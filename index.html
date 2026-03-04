@@ -56,9 +56,6 @@
     <div id="root"></div>
 
     <script type="text/babel">
-	//SDPC-L3+k1.1(224)  -오전 9:17 2026-02-25
-
-        // --- Configuration & Constants ---
         const INITIAL_RATING = 3.000;
         const K_FACTOR = 0.11;
         let SDS_HISTORY_DEL_ONE = "0.12";
@@ -69,7 +66,6 @@
         const MIN_PARTNER_MATCHES = 5; 
         const { useState, useEffect, useRef } = React;
 
-        // --- Firebase Config ---
         const firebaseConfig = {
             apiKey: "AIzaSyD1pj4uw9LyUUTtWn_a28ABN0BC-0zkynY",
             authDomain: "tele-486906.firebaseapp.com",
@@ -86,21 +82,27 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        const MAX_HISTORY_LIMIT = 16;
+        const DISPLAY_DATA_POINTS = 11;
+        const DISPLAY_PLAYER_COUNT = 10;
         
+
         const COLORS = [
             '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', 
             '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6'
         ];
 
-
-
-        // --- Helper Functions ---
         const formatDate = (ts) => {
             if (!ts) return '-';
             const d = ts.toDate ? ts.toDate() : new Date(ts);
             return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
         };
+
+        function getSortTime(createdAt) {
+            if (!createdAt) return 0;
+            if (createdAt.seconds) return createdAt.seconds * 1000;
+            if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
+            return new Date(createdAt).getTime() || 0;
+        }
 
         const calculateRatingChange = (myAvg, oppAvg, myScore, oppScore) => {
             const diff = oppAvg - myAvg;
@@ -115,7 +117,6 @@
             return K_FACTOR * (performance - expected);
         };
 
-        // 소수 첫째자리 구간별 배경색 지정 (0.2 단위) - 목록용
         const getRatingBgClass = (rating) => {
             // 4.0 이상: 회색 (거의 불투명하게 설정하여 깔끔함 강조)
             if (rating >= 4.0) return "bg-gray/90 hover:bg-gray"; 
@@ -133,7 +134,6 @@
             return "bg-gray-100 hover:bg-gray-200";
         };
 
-        // 소수 첫째자리 구간별 색상 지정 - 분포도 막대용
         const getBarColorClass = (ratingStr) => {
             const r = parseFloat(ratingStr);
             if (r >= 4.0) return "bg-gray-400";            
@@ -241,7 +241,7 @@
                         if (timeA !== timeB) return timeA - timeB;
                         return a.id.localeCompare(b.id);
                     })
-                    .slice(-MAX_HISTORY_LIMIT);
+                    .slice(-DISPLAY_DATA_POINTS);
 
                 const ratings = filtered.map(m => {
                     const p = [...(m.teamA || []), ...(m.teamB || [])].find(player => player.id === member.id);
@@ -294,7 +294,7 @@
                             })}
                         </svg>
                         <div className="flex justify-between mt-2 text-[10px] text-gray-400 font-bold px-1">
-                            <span>최근 경기 추이</span>
+                            <span>Rating Trend</span>
                             <div className="flex flex-col items-center py-2 bg-white rounded-lg border border-gray-100">
                                 <span className="text-[8px] text-gray-400 font-bold uppercase">Min</span>
                                 <span className="text-[11px] font-black text-rose-500">{currentMin.toFixed(3)}</span>
@@ -321,7 +321,7 @@
             const [tab, setTab] = React.useState('match');
             const [members, setMembers] = React.useState([]);
             const [matches, setMatches] = React.useState([]);
-            const [matches_TX, setmatches_TX] = useState([]);            
+            const [matches_TZ, setMatches_TZ] = useState([]);       // 원본 경기 데이터 상태 (TZ 적용)        
 
             const [loading, setLoading] = React.useState(true);
             const [toast, setToast] = React.useState(null);
@@ -330,8 +330,7 @@
             const [showDistModal, setShowDistModal] = React.useState(false); // 분포도 모달 상태
             const [showPartnerModal, setShowPartnerModal] = React.useState(false); // 파트너 통계 모달
 
-            const [showTrendModal, setShowTrendModal] = React.useState(false);
-            const [showTableModal, setShowTableModal] = useState(false);
+            const [showModal, setShowModal] = useState(false); // 그래프 모달 표시 여부
 
             const [isAllSelected, setIsAllSelected] = useState(true);
             const chartRef = useRef(null);
@@ -392,146 +391,143 @@
             }, []);
 
 
-            useEffect(() => {
-                if (!user) return;
-                const matches_TXRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('matches');
-                return matches_TXRef.onSnapshot((snapshot) => {
-                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    const sorted = data.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-                    setmatches_TX(sorted);
-                    setLoading(false);
-                }, (error) => console.error("Firestore error:", error));
-            }, [user]);
 
-            const dashboardData = useMemo(() => {
-                if (!matches_TX.length) return { topPlayers: [], chartData: { labels: [], datasets: [] } };
-                
-                const playerFullHistory = {};
-                const lastSeen = {};
-                
-                matches_TX.forEach((match) => {
-                    const teams = [...(match.teamA || []), ...(match.teamB || [])];
-                    teams.forEach(p => {
-                        if (p.name) {
+            // [로직 2] 데이터 가공 (정렬 및 플레이어별 히스토리 추출)
+            const sortedData = useMemo(() => {
+                if (matches_TZ.length === 0) return { players: [], historyMap: {} };
+
+                // 1단계: 경기들을 시계열 순서로 엄격하게 정렬 (과거 -> 최신)
+                // 정렬 기준: matchSeq(매치번호) -> createdAt(시간) -> id(중복 방지용 고유값)
+                const sorted = [...matches_TZ].sort((a, b) => {
+                    const seqA = typeof a.matchSeq === 'number' ? a.matchSeq : 0;
+                    const seqB = typeof b.matchSeq === 'number' ? b.matchSeq : 0;
+                    if (seqA !== seqB) return seqA - seqB;
+                    
+                    const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (new Date(a.createdAt).getTime() || 0);
+                    const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (new Date(b.createdAt).getTime() || 0);
+                    if (timeA !== timeB) return timeA - timeB;
+                    
+                    return a.id.localeCompare(b.id);
+                });
+
+                // 2단계: 정렬된 경기 데이터를 순회하며 선수별 레이팅 변화 기록(Map 생성)
+                const historyMap = {};
+                sorted.forEach(match => {
+                    const allPlayers = [...(match.teamA || []), ...(match.teamB || [])];
+                    allPlayers.forEach(p => {
+                        if (p.name && p.afterRating !== undefined) {
                             const name = p.name.trim();
-                            if (!playerFullHistory[name]) playerFullHistory[name] = [];
-                            if (p.afterRating !== undefined) {
-                                playerFullHistory[name].push(p.afterRating);
-                                lastSeen[name] = match.createdAt?.seconds || 0;
-                            }
+                            if (!historyMap[name]) historyMap[name] = [];
+                            historyMap[name].push(p.afterRating); // 기록 순서대로 배열에 쌓임
                         }
                     });
                 });
 
-                const topPlayers = Object.entries(lastSeen)
-                    .sort(([, a], [, b]) => b - a)
-                    .slice(0, 20)
-                    .map(([name]) => name);
-
-                const MAX_HISTORY = MAX_HISTORY_LIMIT;
-                
-                const labels = Array.from({ length: MAX_HISTORY }, (_, i) => {
-                    const revIndex = MAX_HISTORY - 1 - i;
-                    return revIndex === 0 ? 'Rec' : `L${revIndex}`;
-                });
-
-                const datasets = topPlayers.map((name, i) => {
-                    const fullHist = playerFullHistory[name] || [];
-                    const recentHist = fullHist.slice(-MAX_HISTORY);
-                    const paddedData = new Array(MAX_HISTORY - recentHist.length).fill(null).concat(recentHist);
-
+                // 3단계: 가공된 데이터를 기반으로 화면에 표시할 선수 목록 생성
+                const players = Object.keys(historyMap).map(name => {
+                    const h = historyMap[name];
                     return {
-                        label: name,
-                        data: paddedData,
-                        borderColor: COLORS[i % COLORS.length],
-                        backgroundColor: COLORS[i % COLORS.length],
-                        borderWidth: 3,
-                        tension: 0.3,
-                        pointRadius: 3,
-                        spanGaps: true
+                        name,
+                        currentRating: h[h.length - 1], // 마지막 값이 현재 레이팅
+                        displayHistory: [...h].slice(-DISPLAY_DATA_POINTS).reverse() // 설정된 개수만큼 최신순 배치
                     };
-                });
+                }).sort((a, b) => b.currentRating - a.currentRating); // 현재 레이팅 높은 순으로 정렬
 
-                return { topPlayers: topPlayers, chartData: { labels: labels, datasets: datasets } };
-            }, [matches_TX]);
+                return { players, historyMap };
+            }, [matches_TZ]);
 
-            const toggleAllLegends = () => {
-                if (!chartInstance.current) return;
-                const newValue = !isAllSelected;
-                chartInstance.current.data.datasets.forEach((dataset, index) => {
-                    chartInstance.current.setDatasetVisibility(index, newValue);
-                });
-                chartInstance.current.update();
-                setIsAllSelected(newValue);
-            };
-
-            // Initialize Chart inside Modal when it opens
+            // [로직 3] Chart.js 그래프 생성 및 업데이트
             useEffect(() => {
-                if (showTrendModal && chartRef.current && dashboardData.chartData.labels.length > 0) {
-                    const timer = setTimeout(() => {
-                        if (chartInstance.current) chartInstance.current.destroy();
-                        const ctx = chartRef.current.getContext('2d');
-                        chartInstance.current = new Chart(ctx, {
-                            type: 'line',
-                            data: dashboardData.chartData,
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
-                                        onClick: (e, legendItem, legend) => {
-                                            const index = legendItem.datasetIndex;
-                                            const ci = legend.chart;
-                                            if (ci.isDatasetVisible(index)) ci.hide(index);
-                                            else ci.show(index);
-                                            const visibleCount = ci.data.datasets.filter((_, i) => ci.isDatasetVisible(i)).length;
-                                            setIsAllSelected(visibleCount === ci.data.datasets.length);
-                                        },
-                                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 15, font: { size: 10, weight: 'bold' } }
-                                    },
-                                    tooltip: {
-                                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                        titleColor: '#1e293b',
-                                        bodyColor: '#1e293b',
-                                        borderColor: '#e2e8f0',
-                                        borderWidth: 1,
-                                        cornerRadius: 12,
-                                        callbacks: {
-                                            title: (items) => {
-                                                const label = items[0].label;
-                                                return label === 'Rec' ? 'Recent' : `${label.replace('L', '')} 경기 전`;
-                                            }
-                                        }
+                if (showModal && chartRef.current && sortedData.players.length > 0) {
+                    // 이전 차트 인스턴스가 있다면 제거 (메모리 누수 및 캔버스 꼬임 방지)
+                    if (chartInstance.current) chartInstance.current.destroy();
+                    
+                    const ctx = chartRef.current.getContext('2d');
+                    const topPlayers = sortedData.players.slice(0, DISPLAY_PLAYER_COUNT); // 설정된 선수 수만큼 추출                    
+                    // 더 많은 선수 표시를 위한 확장 컬러 팔레트
+                    const colors = [
+                        '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', 
+                        '#a855f7', '#ec4899', '#f97316', '#3b82f6', '#84cc16',
+                        '#6366f1', '#14b8a6', '#facc15', '#f87171', '#22d3ee',
+                        '#c084fc', '#f472b6', '#fb923c', '#60a5fa', '#a3e635', '#94a3b8'
+                    ];
+
+                    chartInstance.current = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: Array.from({length: DISPLAY_DATA_POINTS}, (_, i) => i === DISPLAY_DATA_POINTS - 1 ? 'Rec' : `L${DISPLAY_DATA_POINTS - 1 - i}`),
+                            datasets: topPlayers.map((p, idx) => {
+                                const raw = sortedData.historyMap[p.name].slice(-DISPLAY_DATA_POINTS);
+                                const data = Array(DISPLAY_DATA_POINTS - raw.length).fill(null).concat(raw);
+                                return {
+                                    label: p.name,
+                                    data: data,
+                                    borderColor: colors[idx],
+                                    backgroundColor: colors[idx],
+                                    tension: 0.3, // 선 곡률
+                                    fill: false,
+                                    spanGaps: true, // 끊긴 데이터 연결
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
+                                };
+                            })
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false }, // 같은 인덱스(시점)의 툴팁 같이 표시
+                            plugins: {
+                                legend: { 
+                                    position: 'bottom',
+                                    labels: { padding: 20, usePointStyle: true, font: { size: 12, weight: '600' } },
+                                    // 레전드 클릭 시 필터링 수행
+                                    onClick: (e, legendItem, legend) => {
+                                        const index = legendItem.datasetIndex;
+                                        const ci = legend.chart;
+                                        if (ci.isDatasetVisible(index)) { ci.hide(index); legendItem.hidden = true; } 
+                                        else { ci.show(index); legendItem.hidden = false; }
                                     }
                                 },
-
-                                scales: {
-                                    x: { 
-                                        grid: { display: false }, 
-                                        ticks: { font: { size: 10 }, color: '#94a3b8' } 
-                                    },
-                                    y: { 
-                                        display: true, 
-                                        position: 'right', 
-                                        grid: { 
-                                            display: true,      // 그리드 라인 활성화
-                                            color: '#e2e8f0',   // 그리드 라인 색상
-                                            drawBorder: false,  // 축의 바깥 테두리 선 제거 (깔끔한 디자인용)
-                                            lineWidth: 1        // 선 굵기
-                                        }, 
-                                        ticks: { 
-                                            font: { size: 9 }, 
-                                            color: '#cbd5e1' 
-                                        } 
-                                    }
+                                tooltip: {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                    titleColor: '#1e293b',
+                                    bodyColor: '#1e293b',
+                                    borderColor: '#e2e8f0',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    usePointStyle: true
+                                }
+                            },
+                            scales: {
+                                y: { 
+                                    beginAtZero: false, 
+                                    grid: { 
+                                        display: true,      // 그리드 표시 여부 (기본값은 true)
+                                        color: '#e2e8f0',   // 그리드 선 색상
+                                        lineWidth: 1,       // 그리드 선 두께
+                                        drawTicks: true     // 축 눈금선 표시 여부
+                                    } 
+                                },
+                                x: { 
+                                    grid: { 
+                                        display: false      // X축 그리드는 숨김 처리됨
+                                    } 
                                 }
                             }
-                        });
-                    }, 100);
-                    return () => clearTimeout(timer);
+                        }
+                    });
                 }
-            }, [showTrendModal, dashboardData.chartData]);
+            }, [showModal, sortedData]);
+
+            // [유틸리티] 전체 선택/해제 로직
+            const toggleAll = (visible) => {
+                if (chartInstance.current) {
+                    chartInstance.current.data.datasets.forEach((_, i) => {
+                        if (visible) chartInstance.current.show(i);
+                        else chartInstance.current.hide(i);
+                    });
+                }
+            };
 
 
             React.useEffect(() => {
@@ -539,31 +535,29 @@
                 const memberPath = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('members');
                 const matchPath = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('matches');
 
-//////////////////////
-            const matchRef = db.collection('artifacts').doc(appId)
-                            .collection('public').doc('data')
-                            .collection('games').doc('maxgame2'); 
-            matchRef.get().then((doc) => {
-                if (doc.exists) {
-                    return SDS_MEMBER_TAB = doc.data().value4;
-                    }
-                });
-            matchRef.get().then((doc) => {
-                if (doc.exists) {
-                    return SDS_ADMIN = doc.data().value4;
-                    }
-                });
-            matchRef.get().then((doc) => {
-                if (doc.exists) {
-                    return SDS_MEMBER_DEL_ONE = doc.data().value4;
-                    }
-                });
-            matchRef.get().then((doc) => {
-                if (doc.exists) {
-                    return SDS_HISTORY_DEL_ONE = doc.data().value4;
-                    }
-                });
-//////////////////////
+                const matchRef = db.collection('artifacts').doc(appId)
+                                .collection('public').doc('data')
+                                .collection('games').doc('maxgame2'); 
+                matchRef.get().then((doc) => {
+                    if (doc.exists) {
+                        return SDS_MEMBER_TAB = doc.data().value4;
+                        }
+                    });
+                matchRef.get().then((doc) => {
+                    if (doc.exists) {
+                        return SDS_ADMIN = doc.data().value4;
+                        }
+                    });
+                matchRef.get().then((doc) => {
+                    if (doc.exists) {
+                        return SDS_MEMBER_DEL_ONE = doc.data().value4;
+                        }
+                    });
+                matchRef.get().then((doc) => {
+                    if (doc.exists) {
+                        return SDS_HISTORY_DEL_ONE = doc.data().value4;
+                        }
+                    });
 
                 const unsubMembers = memberPath.onSnapshot(snap => {
                     const list = [];
@@ -587,6 +581,7 @@
                         return b.id.localeCompare(a.id);
                     });
                     setMatches(list);
+                    setMatches_TZ(list);                    
                     setLoading(false);
                 }, (error) => console.error("Matches listen error:", error));
 
@@ -1225,52 +1220,25 @@
                         )}
                     </Modal>
 
-                    {/* Chart Modal */}
-                    <Modal isOpen={showTrendModal} title="Rating Trend" onClose={() => setShowTrendModal(false)} maxWidth="max-w-md">
-                        <div className="space-y-1">
-                            <div className="flex justify-center items-center px-1">
-                                <button onClick={toggleAllLegends} className="text-[10px] font-black text-emerald-500 underline">Toggle All</button>
-                            </div>
-                            <div className="h-[400px] w-full bg-slate-50 rounded-3xl p-0 border border-slate-100">
-                                <canvas ref={chartRef}></canvas>
-                            </div>
-                        </div>
-                    </Modal>
+                    {/* 그래프 모달 */}
+                    {showModal && (
+                        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-1" onClick={() => setShowModal(false)}>
+                            <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl flex flex-col max-h-[95vh]" onClick={e => e.stopPropagation()}>
+                             
+                                <div className="px-1 py-1 items-center justify-end flex gap-1 border-b bg-gray-50/50">
+                                    <button onClick={() => toggleAll(true)} className="text-[9px] font-bold px-3 py-1 bg-white border border-gray-200 rounded-lg hover:bg-indigo-50 hover:text-emerald-600 transition-all shadow-sm">Select All</button>
+                                    <button onClick={() => toggleAll(false)} className="text-[9px] font-bold px-3 py-1 bg-white border border-gray-200 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all shadow-sm">Deselect All</button>
+                                    <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">✕</button>
 
-                    {/* Table Modal */}
-                    <Modal isOpen={showTableModal} title="Rating Trend(Table)" onClose={() => setShowTableModal(false)} maxWidth="max-w-lg">
-                        <div className="space-y-4">
-                            <div className="table-container overflow-x-auto rounded-3xl border border-slate-100 shadow-inner bg-white">
-                                <table className="w-full text-left border-collapse min-w-[600px]">
-                                    <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-100">
-                                            <th className="sticky left-0 bg-slate-50 px-4 py-3 text-[10px] font-black text-slate-400 uppercase border-r border-slate-100">선수명</th>
-                                            {dashboardData.chartData.labels.map(label => (
-                                                <th key={label} className="px-3 py-3 text-[10px] font-black text-slate-400 uppercase text-center">{label}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {dashboardData.chartData.datasets.map((ds, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50/50">
-                                                <td className="sticky left-0 bg-white px-4 py-3 text-xs font-black text-slate-700 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: ds.borderColor}}></div>
-                                                        {ds.label}
-                                                    </div>
-                                                </td>
-                                                {ds.data.map((val, vIdx) => (
-                                                    <td key={vIdx} className={`px-3 py-3 text-[11px] text-center font-medium ${vIdx === (MAX_HISTORY_LIMIT - 1) ? 'text-slate-900 font-black' : 'text-slate-500'}`}>
-                                                        {val ? val.toLocaleString() : '-'}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                </div>
+                                <div className="p-1 flex-1 overflow-hidden">
+                                    <div className="h-full w-full min-h-[430px]">
+                                        <canvas ref={chartRef}></canvas>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </Modal>
+                    )}
 
                     <header className="bg-white border-b sticky top-0 z-40 px-4 py-3 shadow-sm">
                         <div className="flex items-center justify-between mb-2">
@@ -1544,12 +1512,8 @@
                                         <Icon name="bar-chart-horizontal" size={12} /> Segment distribution
                                     </button>
 
-                                    <button onClick={() => setShowTrendModal(true)} className="text-xs text-sky-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
+                                    <button onClick={() => setShowModal(true)} className="text-xs text-sky-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
                                         <Icon name="line-chart" size={12} /> Rating Trend
-                                    </button>
-
-                                    <button onClick={() => setShowTableModal(true)} className="text-xs hidden text-sky-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
-                                        <Icon name="table" size={12} /> Rating Table
                                     </button>
 
                                 </div>
