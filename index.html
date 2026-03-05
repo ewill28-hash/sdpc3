@@ -1258,7 +1258,7 @@ const getMemberStats = (memberId) => {
                         </div>
                     </Modal>
 
-                    <Modal isOpen={!!detailMember} title={`${detailMember?.name} Player Stats`} onClose={() => setDetailMember(null)}>
+                    <Modal isOpen={!!detailMember} title={`Pickler Stats : ${detailMember?.name}`} onClose={() => setDetailMember(null)}>
                         {detailMember && (
                             <div className="space-y-1">
                                 <div className="grid grid-cols-5 gap-1">
@@ -1288,7 +1288,7 @@ const getMemberStats = (memberId) => {
                                                 </div>
                                                 <div className="bg-grey-90 p-2 rounded-xl border border-gray-100 text-center">
                                                     <div className="text-[9px] text-gray-400 font-bold uppercase">승률</div>
-                                                    <div className={`px-2 py-1 rounded-lg text-[12px] font-black ${getMemberStats(detailMember.id).winRate >= 60 ? 'bg-emerald-100/80 text-emerald-700' : getMemberStats(detailMember.id).winRate >= 40 ? 'bg-white/80 text-gray-700' : 'bg-red-100/80 text-red-700'}`}>
+                                                    <div className={`px-2 py-1 rounded-lg text-[12px] font-black ${getMemberStats(detailMember.id).winRate >= 60 ? 'bg-sky-100/80 text-sky-700' : getMemberStats(detailMember.id).winRate >= 40 ? 'bg-white/80 text-gray-700' : 'bg-red-100/80 text-red-700'}`}>
                                                         {getMemberStats(detailMember.id).winRate.toFixed(1)}%</div>
 
                                                 </div>
@@ -1664,7 +1664,7 @@ const getMemberStats = (memberId) => {
                                                             <td className="px-1 py-2 text-center text-[11px] font-mono font-bold text-slate-700">{s.avgPoints.toFixed(1)}</td>
                                                           
                                                             <td className="px-1 py-2 text-center">
-                                                                <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${s.winRate >= 60 ? 'bg-emerald-100/80 text-emerald-700' : s.winRate >= 40 ? 'bg-white/80 text-gray-700' : 'bg-red-100/80 text-red-700'}`}>
+                                                                <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${s.winRate >= 60 ? 'bg-sky-100/80 text-sky-700' : s.winRate >= 40 ? 'bg-white/80 text-gray-700' : 'bg-red-100/80 text-red-700'}`}>
                                                                     {s.winRate.toFixed(1)}%
                                                                 </span>
                                                             </td>
@@ -1749,11 +1749,17 @@ const getMemberStats = (memberId) => {
                                                             </button>
                                                         </div>
                                                         <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
-                                                            {stats.avgPoints.toFixed(1)}
+                                                                <span className={`px-1 py-1 rounded-lg text-[10px] font-black ${stats.avgPoints >= 9.5 ? 'bg-sky-100/80 text-sky-700' : stats.avgPoints >= 8 ? 'bg-white/80 text-gray-700' : 'bg-red-100/80 text-red-700'}`}>
+                                                                    {stats.avgPoints.toFixed(1)}
+                                                                </span>
                                                             </div>
                                                         <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
-                                                            {stats.winRate.toFixed(1)} 
+                                                                <span className={`px-1 py-1 rounded-lg text-[10px] font-black ${stats.winRate >= 60 ? 'bg-sky-100/80 text-sky-700' : stats.winRate >= 40 ? 'bg-white/80 text-gray-700' : 'bg-red-100/80 text-red-700'}`}>
+                                                                    {stats.winRate.toFixed(1)}%
+                                                                </span>
                                                             </div>
+
+
                                                         <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
                                                             {stats.total} 
                                                             </div>
