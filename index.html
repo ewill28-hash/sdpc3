@@ -63,6 +63,7 @@
         const MIN_PARTNER_MATCHES = 5; 
         const { useState, useEffect, useRef } = React;
 
+        
         const firebaseConfig = {
             apiKey: "AIzaSyD1pj4uw9LyUUTtWn_a28ABN0BC-0zkynY",
             authDomain: "tele-486906.firebaseapp.com",
@@ -367,7 +368,8 @@
             
             const [showBulkUpload, setShowBulkUpload] = React.useState(false);
             const [bulkText, setBulkText] = React.useState("");
-            const [adminSort, setAdminSort] = React.useState('name');
+            const [adminSort, setAdminSort] = React.useState('name'); // 정렬 기준
+            const [adminSortOrder, setAdminSortOrder] = React.useState('desc'); // 정렬 방향 (기본 내림차순)
 
             // Initialize Firebase inside Babel script
             useEffect(() => {
@@ -744,19 +746,16 @@ const getMemberStats = (memberId) => {
                 const maxRating = Math.floor(Math.max(...ratings) * 10) / 10;
                 
                 const dist = {};
-                // 최소~최대 구간을 0으로 초기화 (빈 구간도 표시하기 위함)
                 for (let r = minRating; r <= maxRating + 0.05; r += 0.1) {
                     dist[r.toFixed(1)] = 0;
                 }
                 
-                // 실제 인원 카운트
                 members.forEach(m => {
                     const rating = m.rating || INITIAL_RATING;
                     const interval = (Math.floor(rating * 10) / 10).toFixed(1);
                     dist[interval] = (dist[interval] || 0) + 1;
                 });
                 
-                // 배열로 변환 후 내림차순 정렬 (높은 점수가 위로)
                 const data = Object.keys(dist)
                     .sort((a, b) => parseFloat(b) - parseFloat(a))
                     .map(interval => ({ interval, count: dist[interval] }));
@@ -828,8 +827,6 @@ const getMemberStats = (memberId) => {
                         const partner = team.find(o => o.id !== p.id);
                         const partnerRating = partner ? (partner.rating || INITIAL_RATING) : myRating;
                         
-                        // 지수 설정 (2 또는 3을 권장)
-                        // 1이면 기존과 동일, 2이면 제곱, 3이면 세제곱...
                         const exponent = 2; 
 
                         const myPow = Math.pow(myRating, exponent);
@@ -838,10 +835,8 @@ const getMemberStats = (memberId) => {
 
                         let weight;
                         if (isWin) {
-                            // 승리 시: 내 점수가 높을수록 더 큰 비중을 가져감
                             weight = sumPow > 0 ? (myPow / sumPow) : 0.5;
                         } else {
-                            // 패배 시: 파트너 점수가 높을수록 파트너 비중을 크게 계산 (또는 그 반대로 기획에 따라 조정)
                             weight = sumPow > 0 ? (partnerPow / sumPow) : 0.5;
                         }
 
@@ -1121,29 +1116,70 @@ const getMemberStats = (memberId) => {
             };
 
             const sortedAdminMembers = React.useMemo(() => {
-                const list = [...members];
-                if (adminSort === 'name') {
-                    return list.sort((a, b) => a.name.localeCompare(b.name));
-                } else if (adminSort === 'rating') {
-                    return list.sort((a, b) => (b.rating || INITIAL_RATING) - (a.rating || INITIAL_RATING));
-                } else if (adminSort === 'matches') {
-                    return list.sort((a, b) => getMemberStats(b.id).total - getMemberStats(a.id).total);
-                } else if (adminSort === 'wins') {
-                    return list.sort((a, b) => getMemberStats(b.id).wins - getMemberStats(a.id).wins);
-                } else if (adminSort === 'loss') {
-                    return list.sort((a, b) => getMemberStats(b.id).losses - getMemberStats(a.id).losses);
-                } else if (adminSort === 'mlw') {
-                    return list.sort((a, b) => getMemberStats(b.id).maxWinStreak - getMemberStats(a.id).maxWinStreak);
-                } else if (adminSort === 'msl') {
-                    return list.sort((a, b) => getMemberStats(b.id).maxLosingStreak - getMemberStats(a.id).maxLosingStreak);
-                } else if (adminSort === 'winRate') {
-                    return list.sort((a, b) => getMemberStats(b.id).winRate - getMemberStats(a.id).winRate);
-                } else if (adminSort === 'avgPoints') {
-                    return list.sort((a, b) => getMemberStats(b.id).avgPoints - getMemberStats(a.id).avgPoints);
-                }
-                return list;
-            }, [members, adminSort, matches]);
+                // 1. 모든 멤버에 대해 통계 데이터를 미리 계산 (성능 최적화)
+                const listWithStats = members.map(m => ({
+                    ...m,
+                    stats: getMemberStats(m.id)
+                }));
 
+                // 2. 정렬 방향 설정 (desc일 때 -1, asc일 때 1)
+                const isAsc = adminSortOrder === 'asc';
+                const modifier = isAsc ? 1 : -1;
+
+                return listWithStats.sort((a, b) => {
+                    let result = 0;
+
+                    // 3. 정렬 기준별 값 비교
+                    if (adminSort === 'name') {
+                        result = a.name.localeCompare(b.name);
+                        // 이름은 기본이 오름차순(가나다)이므로 modifier를 반대로 적용하거나 별도 처리 가능
+                        return result * (isAsc ? 1 : -1); 
+                    }
+
+                    switch (adminSort) {
+                        case 'rating':
+                            result = (a.rating || INITIAL_RATING) - (b.rating || INITIAL_RATING);
+                            break;
+                        case 'matches':
+                            result = a.stats.total - b.stats.total;
+                            break;
+                        case 'wins':
+                            result = a.stats.wins - b.stats.wins;
+                            break;
+                        case 'loss':
+                            result = a.stats.losses - b.stats.losses;
+                            break;
+                        case 'mlw':
+                            result = a.stats.maxWinStreak - b.stats.maxWinStreak;
+                            break;
+                        case 'msl':
+                            result = a.stats.maxLosingStreak - b.stats.maxLosingStreak;
+                            break;
+                        case 'winRate':
+                            result = a.stats.winRate - b.stats.winRate;
+                            break;
+                        case 'avgPoints':
+                            result = a.stats.avgPoints - b.stats.avgPoints;
+                            break;
+                        default:
+                            return 0;
+                    }
+
+                    // 4. 최종 정렬 방향 적용 (내림차순일 경우 결과값에 -1을 곱함)
+                    return result * modifier;
+                });
+            }, [members, adminSort, adminSortOrder, matches]);
+
+            const toggleSort = (type) => {
+                if (adminSort === type) {
+                    // 현재와 같은 기준 클릭 시 방향 토글
+                    setAdminSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                } else {
+                    // 새로운 기준 클릭 시 내림차순(desc)으로 시작
+                    setAdminSort(type);
+                    setAdminSortOrder('desc');
+                }
+            };
             const avgA = getTeamAvg(teamA);
             const avgB = getTeamAvg(teamB);
             const hasPlayers = teamA.length > 0 || teamB.length > 0;
@@ -1657,34 +1693,46 @@ const getMemberStats = (memberId) => {
                                                 setAdminPwdInput(e.target.value);
                                                 if (e.target.value === SDS_ADMIN) setIsAdmin(true);
                                             }} />
-                                        <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Administrator Login</p>
+                                        <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Entry</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-1">
                                         <div className="flex bg-rose-50 p-1 rounded-2xl gap-1">
                                             {[
-                                                { id: 'name', label: '이름' },
+                                                { id: 'name', label: 'Pickler ' },
                                                 { id: 'matches', label: '경기' },
-                                                { id: 'avgPoints', label: 'A.P' },                                                
+                                                { id: 'avgPoints', label: 'A.P' },
                                                 { id: 'winRate', label: 'W%' },
                                                 { id: 'wins', label: '승리' },
                                                 { id: 'loss', label: '패배' },
                                                 { id: 'mlw', label: '연승' },
                                                 { id: 'msl', label: '연패' },
-                                                { id: 'rating', label: '점수' },
-                                            ].map((item) => (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => setAdminSort(item.id)}
-                                                    className={`flex-1 py-2 text-[12px] font-black rounded-xl transition-all ${
-                                                        adminSort === item.id
-                                                            ? 'bg-rose-500 text-white shadow-md' 
-                                                            : 'text-rose-500 hover:bg-rose-100' 
-                                                    }`}
-                                                >
-                                                    {item.label}
-                                                </button>
-                                            ))}
+                                                { id: 'rating', label: 'Rating' },
+                                            ].map((item) => {
+                                                const isActive = adminSort === item.id;
+                                                
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => toggleSort(item.id)} 
+                                                        className={`flex flex-1 items-center justify-center py-2 text-[11px] font-black rounded-xl transition-all ${
+                                                            isActive
+                                                                ? 'bg-rose-500 text-white shadow-md' 
+                                                                : 'text-rose-500 hover:bg-rose-100' 
+                                                        }`}
+                                                    >
+                                                        <span className="flex items-center gap-0.5">
+                                                            {item.label}
+
+                                                            {isActive && (
+                                                                <span className="text-[10px] opacity-80">
+                                                                    {adminSortOrder === 'asc' ? '↑' : '↓'}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
 
                                         <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm divide-y divide-gray-50">
@@ -1696,7 +1744,9 @@ const getMemberStats = (memberId) => {
                                                             <div className="flex items-center justify-center bg-slate-900 text-white rounded-md w-4 h-4 font-black text-[9px]">
                                                                 {idx + 1}  
                                                             </div>     
-                                                            <span className="font-bold text-slate-800 text-sm">{m.name}</span>
+                                                            <button onClick={() => setDetailMember(m)} className="flex items-center gap-2 group/btn">
+                                                                <span className="font-bold text-slate-800 text-sm">{m.name}</span>
+                                                            </button>
                                                         </div>
                                                         <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
                                                             {stats.total} 
