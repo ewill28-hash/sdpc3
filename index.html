@@ -38,9 +38,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
@@ -409,8 +406,6 @@
                 };
                 init();
             }, []);
-
-
 
             // [로직 2] 데이터 가공 (정렬 및 플레이어별 히스토리 추출)
             const sortedData = useMemo(() => {
@@ -1536,17 +1531,15 @@
                         {tab === 'stats' && (
                             <div className="space-y-2">
                                 <div className="flex justify-end gap-3 px-2">
-                                    <button onClick={() => setShowPartnerModal(true)} className="text-xs text-pickle-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
-                                        <Icon name="users" size={12} /> Best Duos
-                                    </button>
                                     <button onClick={() => setShowDistModal(true)} className="text-xs text-orange-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
                                         <Icon name="bar-chart-horizontal" size={12} /> Segment distribution
                                     </button>
-
+									<button onClick={() => setShowPartnerModal(true)} className="text-xs text-pickle-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
+                                        <Icon name="users" size={12} /> Best Duos
+                                    </button>
                                     <button onClick={() => setShowModal(true)} className="text-xs text-sky-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
                                         <Icon name="line-chart" size={12} /> Rating Trend
                                     </button>
-
                                 </div>
 
                                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden fade-in">
@@ -1619,13 +1612,13 @@
                                     <div className="space-y-2">
                                         <div className="flex bg-gray-100 p-1 rounded-2xl gap-1">
                                             <button onClick={() => setAdminSort('name')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'name' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                                                이름순 정렬
+                                                이름순
                                             </button>
                                             <button onClick={() => setAdminSort('matches')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'matches' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                                                경기수 정렬
+                                                경기수순
                                             </button>
 											<button onClick={() => setAdminSort('rating')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'rating' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                                                레이팅순 정렬
+                                                레이팅순
                                             </button>
                                         </div>
 
