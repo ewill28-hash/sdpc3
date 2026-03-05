@@ -631,31 +631,70 @@
                 return max > 0 ? max : matches.length;
             };
 
-            const getMemberStats = (memberId) => {
-                let wins = 0, total = 0, totalPoints = 0;
-                matches.forEach(m => {
-                    const isPlayerA = m.teamA?.some(p => p.id === memberId);
-                    const isPlayerB = m.teamB?.some(p => p.id === memberId);
-                    if (isPlayerA || isPlayerB) {
-                        total++;
-                        if (isPlayerA) {
-                            totalPoints += (m.scoreA || 0);
-                            if (m.scoreA > m.scoreB) wins++;
-                        } else if (isPlayerB) {
-                            totalPoints += (m.scoreB || 0);
-                            if (m.scoreB > m.scoreA) wins++;
-                        }
-                    }
-                });
-                return { 
-                    wins
-                    , total
-                    , losses: total - wins
-                    , winRate: total === 0 ? 0 : (wins / total) * 100 
-                    , totalPoints
-                    , avgPoints: total === 0 ? 0 : (totalPoints / total)                    
-                    };
-            };
+const getMemberStats = (memberId) => {
+    let wins = 0, total = 0, totalPoints = 0;
+    
+    // 연승/연패 관련 변수 초기화
+    let currentWinStreak = 0;
+    let currentLosingStreak = 0;
+    let maxWinStreak = 0;
+    let maxLosingStreak = 0;
+
+    matches.forEach(m => {
+        const isPlayerA = m.teamA?.some(p => p.id === memberId);
+        const isPlayerB = m.teamB?.some(p => p.id === memberId);
+
+        if (isPlayerA || isPlayerB) {
+            total++;
+            
+            // 1. 해당 매치의 승패 여부 확인
+            let isWin = false;
+            let isLoss = false;
+            let points = 0;
+
+            if (isPlayerA) {
+                points = m.scoreA || 0;
+                isWin = m.scoreA > m.scoreB;
+                isLoss = m.scoreA < m.scoreB;
+            } else {
+                points = m.scoreB || 0;
+                isWin = m.scoreB > m.scoreA;
+                isLoss = m.scoreB < m.scoreA;
+            }
+
+            totalPoints += points;
+
+            // 2. 연승/연패 로직 적용
+            if (isWin) {
+                wins++;
+                currentWinStreak++;
+                currentLosingStreak = 0; // 패배 흐름 끊김
+                maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
+            } else if (isLoss) {
+                currentLosingStreak++;
+                currentWinStreak = 0; // 승리 흐름 끊김
+                maxLosingStreak = Math.max(maxLosingStreak, currentLosingStreak);
+            } else {
+                // 무승부일 경우 모든 스트릭 초기화 (필요에 따라 유지하도록 수정 가능)
+                currentWinStreak = 0;
+                currentLosingStreak = 0;
+            }
+        }
+    });
+
+    return {
+        wins,
+        total,
+        losses: total - wins,
+        winRate: total === 0 ? 0 : (wins / total) * 100,
+        totalPoints,
+        avgPoints: total === 0 ? 0 : (totalPoints / total),
+        currentWinStreak,
+        currentLosingStreak,
+        maxWinStreak,
+        maxLosingStreak
+    };
+};
 
             const getAdvancedStats = (memberId) => {
                 const playerMatches = matches.filter(m => [...(m.teamA || []), ...(m.teamB || [])].some(p => p.id === memberId));
@@ -1089,6 +1128,18 @@
                     return list.sort((a, b) => (b.rating || INITIAL_RATING) - (a.rating || INITIAL_RATING));
                 } else if (adminSort === 'matches') {
                     return list.sort((a, b) => getMemberStats(b.id).total - getMemberStats(a.id).total);
+                } else if (adminSort === 'wins') {
+                    return list.sort((a, b) => getMemberStats(b.id).wins - getMemberStats(a.id).wins);
+                } else if (adminSort === 'loss') {
+                    return list.sort((a, b) => getMemberStats(b.id).losses - getMemberStats(a.id).losses);
+                } else if (adminSort === 'mlw') {
+                    return list.sort((a, b) => getMemberStats(b.id).maxWinStreak - getMemberStats(a.id).maxWinStreak);
+                } else if (adminSort === 'msl') {
+                    return list.sort((a, b) => getMemberStats(b.id).maxLosingStreak - getMemberStats(a.id).maxLosingStreak);
+                } else if (adminSort === 'winRate') {
+                    return list.sort((a, b) => getMemberStats(b.id).winRate - getMemberStats(a.id).winRate);
+                } else if (adminSort === 'avgPoints') {
+                    return list.sort((a, b) => getMemberStats(b.id).avgPoints - getMemberStats(a.id).avgPoints);
                 }
                 return list;
             }, [members, adminSort, matches]);
@@ -1609,34 +1660,66 @@
                                         <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Administrator Login</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
-                                        <div className="flex bg-gray-100 p-1 rounded-2xl gap-1">
-                                            <button onClick={() => setAdminSort('name')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'name' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                                                이름순
-                                            </button>
-                                            <button onClick={() => setAdminSort('matches')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'matches' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                                                경기수순
-                                            </button>
-											<button onClick={() => setAdminSort('rating')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'rating' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                                                레이팅순
-                                            </button>
+                                    <div className="space-y-1">
+                                        <div className="flex bg-rose-50 p-1 rounded-2xl gap-1">
+                                            {[
+                                                { id: 'name', label: '이름' },
+                                                { id: 'matches', label: '경기' },
+                                                { id: 'avgPoints', label: 'A.P' },                                                
+                                                { id: 'winRate', label: 'W%' },
+                                                { id: 'wins', label: '승리' },
+                                                { id: 'loss', label: '패배' },
+                                                { id: 'mlw', label: '연승' },
+                                                { id: 'msl', label: '연패' },
+                                                { id: 'rating', label: '점수' },
+                                            ].map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => setAdminSort(item.id)}
+                                                    className={`flex-1 py-2 text-[12px] font-black rounded-xl transition-all ${
+                                                        adminSort === item.id
+                                                            ? 'bg-rose-500 text-white shadow-md' 
+                                                            : 'text-rose-500 hover:bg-rose-100' 
+                                                    }`}
+                                                >
+                                                    {item.label}
+                                                </button>
+                                            ))}
                                         </div>
 
                                         <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm divide-y divide-gray-50">
                                             {sortedAdminMembers.map((m, idx) => {
                                                 const stats = getMemberStats(m.id);
                                                 return (          
-                                                    <div key={m.id} className="p-2 flex justify-between items-center group hover:bg-gray-50 transition-colors">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="flex items-center justify-center bg-slate-900 text-white rounded-lg w-5 h-5 font-black text-[10px]">
+                                                    <div key={m.id} className="p-1 flex justify-between items-center group hover:bg-gray-50 transition-colors">
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="flex items-center justify-center bg-slate-900 text-white rounded-md w-4 h-4 font-black text-[9px]">
                                                                 {idx + 1}  
                                                             </div>     
-                                                            <span className="font-extrabold text-slate-800 text-sm">{m.name}</span>
+                                                            <span className="font-bold text-slate-800 text-sm">{m.name}</span>
                                                         </div>
-                                                        <div className="flex items-center">
-                                                            <div className="text-[11px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-2">
-                                                                {stats.total} 경기
+                                                        <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.total} 
                                                             </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.avgPoints.toFixed(1)}
+                                                            </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.winRate.toFixed(1)} 
+                                                            </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.wins}
+                                                            </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.losses}
+                                                            </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.maxWinStreak}
+                                                            </div>
+                                                        <div className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.maxLosingStreak}
+                                                            </div>
+                                                        <div className="flex items-center">
                                                             <input type="number" step="0.001" defaultValue={(m.rating || INITIAL_RATING).toFixed(3)}
                                                                 onBlur={async (e) => {
                                                                     const val = parseFloat(e.target.value);
@@ -1645,7 +1728,7 @@
                                                                         showToast(`${m.name} 수정 완료`);
                                                                     }
                                                                 }}
-                                                                className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-right font-black font-mono text-xs outline-none focus:border-pickle-500" />
+                                                                className="w-16 border border-rose-200 rounded-xl px-2 py-1.5 text-right font-black font-mono text-xs outline-none focus:border-pickle-500" />
                                                         </div>
                                                     </div>
                                                 );
