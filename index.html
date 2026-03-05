@@ -1697,7 +1697,7 @@ const getMemberStats = (memberId) => {
                                     </div>
                                 ) : (
                                     <div className="space-y-1">
-                                        <div className="flex bg-rose-50 p-1 rounded-2xl gap-1">
+                                        <div className="flex bg-rose-50 p-1 underline decoration-dotted decoration-rose-500 underline-offset-4 rounded-2xl gap-1">
                                             {[
                                                 { id: 'name', label: 'Pickler ' },
                                                 { id: 'avgPoints', label: 'A.P' },
@@ -1748,19 +1748,17 @@ const getMemberStats = (memberId) => {
                                                                 <span className="font-bold text-slate-800 text-sm">{m.name}</span>
                                                             </button>
                                                         </div>
-                                                        <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                        <div className="text-[9px] text-gray-700 font-bold bg-gray-100 ">
                                                                 <span className={`px-1 py-1 rounded-lg text-[10px] font-black ${stats.avgPoints >= 9.5 ? 'bg-red-100/80 text-red-700' : stats.avgPoints >= 8 ? 'bg-white/80 text-gray-700' : 'bg-sky-100/80 text-sky-700'}`}>
                                                                     {stats.avgPoints.toFixed(1)}
                                                                 </span>
                                                             </div>
-                                                        <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                        <div className="text-[9px] text-gray-700 font-bold bg-gray-100 ">
                                                                 <span className={`px-1 py-1 rounded-lg text-[10px] font-black ${stats.winRate >= 60 ? 'bg-red-100/80 text-red-700' : stats.winRate >= 40 ? 'bg-white/80 text-gray-700' : 'bg-sky-100/80 text-sky-700'}`}>
                                                                     {stats.winRate.toFixed(1)}%
                                                                 </span>
                                                             </div>
-
-
-                                                        <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                        <div className="text-[10px] text-gray-900 font-bold bg-gray-200 px-1.5 py-0.5 rounded mr-1">
                                                             {stats.total} 
                                                             </div>
 														<div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
