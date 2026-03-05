@@ -1385,8 +1385,8 @@
                         )}
 
                         {tab === 'history' && (
-                            <div className="space-y-4">
-                                <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                            <div className="space-y-2">
+                                <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-2">
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2 focus-within:ring-2 ring-emerald-500/20 transition-all">
                                             <Icon name="search" size={16} className="text-gray-400" />
@@ -1422,7 +1422,7 @@
                                     </div>
                                 </div>
                                 {showBulkUpload && (
-                                    <div className="bg-emerald-50 p-4 rounded-3xl border border-emerald-100 space-y-3 fade-in">
+                                    <div className="bg-emerald-50 p-3 rounded-3xl border border-emerald-100 space-y-2 fade-in">
                                         <div className="flex justify-between items-center">
                                             <h4 className="text-xs font-black text-emerald-800 flex items-center gap-2"><Icon name="file-text" size={14} /> 경기 결과 일괄 입력</h4>
                                             <button onClick={() => setShowBulkUpload(false)} className="text-emerald-400 hover:text-emerald-600"><Icon name="x" size={16} /></button>
@@ -1534,7 +1534,7 @@
                         )}
 
                         {tab === 'stats' && (
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 <div className="flex justify-end gap-3 px-2">
                                     <button onClick={() => setShowPartnerModal(true)} className="text-xs text-pickle-600 font-black flex items-center gap-1.5 hover:underline decoration-dotted underline-offset-4">
                                         <Icon name="users" size={12} /> Best Duos
@@ -1605,7 +1605,7 @@
                         )}
 
                         {tab === 'admin' && (
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 {!isAdmin ? (
                                     <div className="p-10 text-center bg-white rounded-3xl border border-gray-100 shadow-xl">
                                         <input type="password" inputMode="numeric" placeholder="****" className="border-2 p-4 rounded-2xl w-full max-w-[160px] text-center mb-6 outline-none focus:border-pickle-500 transition-all text-2xl tracking-[1em] font-black" 
@@ -1616,7 +1616,7 @@
                                         <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Administrator Login</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-2">
                                         <div className="flex bg-gray-100 p-1 rounded-2xl gap-1">
                                             <button onClick={() => setAdminSort('name')} className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${adminSort === 'name' ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                                                 이름순 정렬
@@ -1657,7 +1657,7 @@
                                                     </div>
                                                 );
                                             })}
-                                            <div className="p-4 bg-slate-50 flex justify-center border-t">
+                                            <div className="p-2 bg-slate-50 flex justify-center border-t">
                                                 <button onClick={() => setIsAdmin(false)} className="text-[10px] text-slate-400 underline font-black uppercase tracking-widest">Logout</button>
                                             </div>
                                         </div>
@@ -1670,7 +1670,7 @@
                         )}
 
                         {tab === 'member' && (
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 <div className="flex justify-between items-center px-1">
                                     <h3 className="font-black text-slate-800 text-base ">sdpc Player</h3>
                                     <button onClick={downloadMembersCSV} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black hover:bg-slate-200 transition-colors">
