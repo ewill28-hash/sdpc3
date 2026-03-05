@@ -1700,10 +1700,10 @@ const getMemberStats = (memberId) => {
                                         <div className="flex bg-rose-50 p-1 rounded-2xl gap-1">
                                             {[
                                                 { id: 'name', label: 'Pickler ' },
-                                                { id: 'matches', label: '경기' },
                                                 { id: 'avgPoints', label: 'A.P' },
                                                 { id: 'winRate', label: 'W%' },
-                                                { id: 'wins', label: '승리' },
+                                                { id: 'matches', label: '경기' },
+												{ id: 'wins', label: '승리' },
                                                 { id: 'loss', label: '패배' },
                                                 { id: 'mlw', label: '연승' },
                                                 { id: 'msl', label: '연패' },
@@ -1749,15 +1749,15 @@ const getMemberStats = (memberId) => {
                                                             </button>
                                                         </div>
                                                         <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
-                                                            {stats.total} 
-                                                            </div>
-                                                        <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
                                                             {stats.avgPoints.toFixed(1)}
                                                             </div>
                                                         <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
                                                             {stats.winRate.toFixed(1)} 
                                                             </div>
                                                         <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
+                                                            {stats.total} 
+                                                            </div>
+														<div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
                                                             {stats.wins}
                                                             </div>
                                                         <div className="text-[10px] text-gray-700 font-bold bg-gray-100 px-1.5 py-0.5 rounded mr-1">
